@@ -74,3 +74,44 @@ def show_winner_popup(screen, winner, width, height, font_path):
         small_font = pygame.font.Font(None, 30)  # 用默认字体
     tip = small_font.render("按任意键重新开始", True, BLACK)
     screen.blit(tip, tip.get_rect(center=(width // 2, height // 2 + 25)))
+
+
+def draw_pass_button(screen, pass_count, max_pass, x, y, width, height, font_path=None):
+    """
+    绘制让棋按钮
+    返回: pygame.Rect 用于点击检测
+    """
+    try:
+        font = pygame.font.Font(font_path, 18)
+    except:
+        font = pygame.font.Font(None, 18)
+
+    can_pass = pass_count < max_pass
+    rect = pygame.Rect(x, y, width, height)
+
+    # 鼠标悬停效果
+    mouse_pos = pygame.mouse.get_pos()
+    is_hover = rect.collidepoint(mouse_pos)
+
+    # 按钮背景颜色
+    if can_pass:
+        bg_color = (80, 200, 80) if not is_hover else (120, 255, 120)
+        border_color = (0, 100, 0)
+        text_color = (255, 255, 255)
+    else:
+        bg_color = (180, 180, 180) if not is_hover else (200, 200, 200)
+        border_color = (120, 120, 120)
+        text_color = (80, 80, 80)
+
+    # 绘制按钮
+    # rect = pygame.Rect(x, y, width, height)
+    pygame.draw.rect(screen, bg_color, rect, border_radius=8)
+    pygame.draw.rect(screen, border_color, rect, 2, border_radius=8)
+
+    # 按钮文字
+    text = f"让棋 ({pass_count}/{max_pass})"
+    text_surface = font.render(text, True, text_color)
+    text_rect = text_surface.get_rect(center=rect.center)
+    screen.blit(text_surface, text_rect)
+
+    return rect

@@ -60,7 +60,7 @@ def draw_menu(screen, width, height, font_large, font_small):
 
 def draw_connecting(screen, width, height, font):
     """显示连接中界面"""
-    screen.fill(WHITE)
+    screen.fill(WHITE)#白色：(255, 255, 255)
     text = font.render("正在连接服务器...", True, BLUE)
     text_rect = text.get_rect(center=(width // 2, height // 2))
     screen.blit(text, text_rect)

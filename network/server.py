@@ -14,6 +14,9 @@ class GameServer:
         self.game_over = False
         self.server_socket = None
         self.running = False
+        #让棋相关属性
+        self.pass_count = 0
+        self.max_pass = 3
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -110,6 +113,40 @@ class GameServer:
             else:
                 self.current_player = 'white' if player == 'black' else 'black'
                 self._send_board_state()
+            pass
+
+        # ===== 新增：让棋处理 =====
+        elif msg_type == 'pass':
+            player = msg['data']['player']
+
+            # 验证
+            if self.game_over:
+                return
+            if player != self.current_player:
+                print(f"不是 {player} 的回合")
+                return
+
+            # 检查是否可以让棋
+            if self.pass_count >= self.max_pass:
+                print(f"{player} 让棋失败：次数已用完")
+                return
+
+            # 执行让棋
+            self.pass_count += 1
+            self.current_player = 'white' if player == 'black' else 'black'
+            print(f"{player} 让棋 ({self.pass_count}/{self.max_pass})")
+
+            # 广播让棋后的状态
+            self._send_board_state()
+            # 额外发送让棋通知
+            self.broadcast({
+                "type": "pass_notify",
+                "data": {
+                    "player": player,
+                    "pass_count": self.pass_count,
+                    "max_pass": self.max_pass
+                }
+            })
 
         elif msg_type == 'reset':
             self.board = [[None] * self.board_size for _ in range(self.board_size)]
@@ -120,13 +157,17 @@ class GameServer:
                 "type": "reset",
                 "data": {"message": "游戏已重置"}
             })
+            self.pass_count = 0
 
     def _send_board_state(self):
         self.broadcast({
             "type": "sync",
             "data": {
                 "board": self.board,
-                "current_player": self.current_player
+                "current_player": self.current_player,
+
+                "pass_count": self.pass_count,
+                "max_pass": self.max_pass
             }
         })
 

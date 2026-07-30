@@ -18,6 +18,9 @@ class GameClient:
         self.connected = False
         self.on_update = None# 回调函数，用于更新界面
 
+        self.pass_count = 0
+        self.max_pass = 3
+
     def connect(self):
         """连接到服务器"""
         try:
@@ -71,6 +74,11 @@ class GameClient:
         elif msg_type == 'sync': #sync: 同时，同步；协调，一致；
             self.board = msg['data']['board']
             self.current_player = msg['data']['current_player']
+            # ===== 新增：更新让棋数据 =====
+            if 'pass_count' in msg['data']:
+                self.pass_count = msg['data']['pass_count']
+            if 'max_pass' in msg['data']:
+                self.max_pass = msg['data']['max_pass']
             if self.on_update:
                 self.on_update()
 
@@ -86,6 +94,14 @@ class GameClient:
             self.game_over = False
             self.winner = None
             print("游戏已重置")
+            if self.on_update:
+                self.on_update()
+
+        elif msg_type == 'pass_notify':
+            player = msg['data']['player']
+            pass_count = msg['data']['pass_count']
+            max_pass = msg['data']['max_pass']
+            print(f"{player} 让棋 ({pass_count}/{max_pass})")
             if self.on_update:
                 self.on_update()
 
@@ -131,6 +147,7 @@ class GameClient:
             print(f"发送重置请求失败: {e}")
 
     def close(self):
+        """关闭连接"""
         self.connected = False
         if self.socket:
             try:
@@ -138,3 +155,46 @@ class GameClient:
             except:
                 pass
         print("连接已关闭")
+
+    def send_pass(self):
+        """发送让棋请求到服务器"""
+        if not self.connected:
+            print("未连接到服务器")
+            return False
+
+        if self.game_over:
+            print("游戏已结束")
+            return False
+
+        if self.player != self.current_player:
+            print("还没轮到你下棋")
+            return False
+
+        if self.pass_count >= self.max_pass:
+            print("让棋次数已用完")
+            return False
+
+        msg = {
+            "type": "pass",
+            "data": {
+                "player": self.player
+            }
+        }
+        try:
+            self.socket.send(json.dumps(msg).encode())
+            return True
+        except Exception as e:
+            print(f"发送让棋请求失败: {e}")
+            return False
+
+    def can_pass(self):
+        """判断当前玩家是否可以让棋"""
+        if not self.connected:
+            return False
+        if self.game_over:
+            return False
+        if self.player != self.current_player:
+            return False
+        if self.pass_count >= self.max_pass:
+            return False
+        return True

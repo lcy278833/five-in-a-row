@@ -4,7 +4,7 @@ import os
 
 from game.board import Board
 from game.judge import check_win, is_board_full
-from ui.renderer import draw_board, show_status, show_winner_popup
+from ui.renderer import draw_board, show_status, show_winner_popup, draw_pass_button
 from ui.menu import draw_menu, draw_connecting, Button
 from network.client import GameClient
 
@@ -17,11 +17,20 @@ HEIGHT = WIDTH
 VALID_RADIUS = 15
 FONT_PATH = 'C:/Windows/Fonts/simhei.ttf'
 
+# 让棋按钮位置
+PASS_BUTTON_X = WIDTH - 130
+PASS_BUTTON_Y = 5
+PASS_BUTTON_WIDTH = 110
+PASS_BUTTON_HEIGHT = 20
+
 # ========== 游戏状态 ==========
 MENU = 0
 LOCAL = 1
 NETWORK = 2
 CONNECTING = 3
+
+# ========== 全局变量 ==========
+# pass_button_rect = None  # 让棋按钮矩形
 
 # ========== 初始化 ==========
 pygame.init()
@@ -72,12 +81,48 @@ def start_network_game():
     if network_player:
         state = NETWORK
         network_client.on_update = lambda: None  # 简单回调
+        print("网络连接成功！")  # 增加这一行，方便查看状态
     else:
         state = MENU
+        print("网络连接失败，返回菜单")
 
+#让棋逻辑（统一处理
+def try_pass():
+    """尝试让棋，返回是否成功"""
+    global state, local_board, network_client
+    if state == LOCAL:
+        if local_board.can_pass():
+            success, remaining = local_board.pass_turn()
+            if success:
+                print(f"让棋成功，剩余 {remaining} 次")
+                return True
+            else:
+                print("让棋失败")
+                return False
+        else:
+            if local_board.pass_count >= local_board.max_pass:
+                print("让棋次数已用完")
+            elif local_board.last_was_pass:
+                print("对手刚让完棋，你必须落子")
+            else:
+                print("无法让棋")
+            return False
+    elif state == NETWORK and network_client:
+        if network_client.can_pass():
+            network_client.send_pass()
+            return True
+        else:
+            print("网络模式无法让棋")
+            return False
+    else:
+        print(f"当前状态 {state} 不支持让棋")
+        return False
 
 # ========== 主循环 ==========
 while True:
+    # 让棋按钮矩形（在绘制时更新）
+    button_rect = pygame.Rect(PASS_BUTTON_X, PASS_BUTTON_Y, PASS_BUTTON_WIDTH, PASS_BUTTON_HEIGHT)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             if network_client:
@@ -85,7 +130,10 @@ while True:
             pygame.quit()
             sys.exit()
 
+        #键盘事件（统一处理）
         elif event.type == pygame.KEYDOWN:
+            print(f"按下了按键：{event.key}")
+
             if event.key == pygame.K_ESCAPE:
                 if state == LOCAL or state == NETWORK:
                     state = MENU
@@ -95,6 +143,11 @@ while True:
                 elif state == MENU:
                     pygame.quit()
                     sys.exit()
+
+            # ===== P 键让棋（所有模式通用） =====
+            if event.key == pygame.K_p:
+                print("P键被按下")
+                try_pass()#统一调度让棋函数
 
         # ===== 菜单状态 =====
         if state == MENU:
@@ -112,9 +165,14 @@ while True:
         # ===== 本地对战状态 =====
         elif state == LOCAL:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if local_game_over:
+                # 直接检测点击是否在按钮区域
+                if button_rect.collidepoint(event.pos):
+                    print("点击了让棋按钮")
+                    try_pass()  # 调用统一让棋函数
+                elif local_game_over:
                     reset_local_game()
                 else:
+                    # 正常落子逻辑
                     x, y = event.pos
                     col = round((x - MARGIN) / CELL_SIZE)
                     row = round((y - MARGIN) / CELL_SIZE)
@@ -123,8 +181,8 @@ while True:
                     dx = x - cross_x
                     dy = y - cross_y
                     if (dx ** 2 + dy ** 2 <= VALID_RADIUS ** 2 and
-                        0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE and
-                        local_board.grid[row][col] is None):
+                            0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE and
+                            local_board.grid[row][col] is None):
                         local_board.place_piece(row, col)
                         if check_win(local_board.grid, row, col, local_board.current_player):
                             local_winner = get_chinese_player(local_board.current_player)
@@ -138,7 +196,9 @@ while True:
         # ===== 网络对战状态 =====
         elif state == NETWORK:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if network_client.game_over:
+                if network_client is None:
+                    print("未连接到服务器")
+                elif network_client.game_over:
                     network_client.send_reset()
                 else:
                     x, y = event.pos
@@ -150,7 +210,11 @@ while True:
                     dy = y - cross_y
                     if (dx ** 2 + dy ** 2 <= VALID_RADIUS ** 2 and
                         0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE):
-                        network_client.send_move(row, col)
+                        # 检查该位置是否有棋子
+                        if network_client.board[row][col] is None:
+                            network_client.send_move(row, col)
+                        else:
+                            print("该位置已有棋子")
 
     # ========== 绘制 ==========
     if state == MENU:
@@ -164,6 +228,21 @@ while True:
 
     elif state == LOCAL:
         draw_board(screen, local_board.grid, BOARD_SIZE, CELL_SIZE, MARGIN)
+
+        # 绘制让棋按钮，并保存矩形用于点击检测
+        if not local_game_over:
+            button_rect = draw_pass_button(
+            screen,
+            local_board.pass_count,
+            local_board.max_pass,
+            PASS_BUTTON_X, PASS_BUTTON_Y,
+            PASS_BUTTON_WIDTH, PASS_BUTTON_HEIGHT,
+            FONT_PATH
+        )
+            # print(f"绘制让棋按钮: pass_count={local_board.pass_count},button_rect={button_rect}")  # 调试
+        else:
+            button_rect = None
+
         if local_game_over:
             if local_winner == "平局":
                 show_status(screen, "平局！", FONT_PATH, MARGIN)
@@ -174,11 +253,28 @@ while True:
             else:
                 show_status(screen, "游戏结束", FONT_PATH, MARGIN)
         else:
-            show_status(screen, f"当前玩家：{get_chinese_player(local_board.current_player)}", FONT_PATH, MARGIN)
+            # show_status(screen, f"当前玩家：{get_chinese_player(local_board.current_player)}", FONT_PATH, MARGIN)
+            status = f"当前玩家：{get_chinese_player(local_board.current_player)}"
+            if local_board.can_pass():
+                status += ("[P键让棋]")
+            show_status(screen,status,FONT_PATH,MARGIN)
 
     elif state == NETWORK:
         if network_client:
             draw_board(screen, network_client.board, BOARD_SIZE, CELL_SIZE, MARGIN)
+            #绘制让棋按钮，游戏未结束时显示
+            if not network_client.game_over:
+                button_rect = draw_pass_button(
+                    screen,
+                    network_client.pass_count,
+                    network_client.max_pass,
+                    PASS_BUTTON_X, PASS_BUTTON_Y,
+                    PASS_BUTTON_WIDTH, PASS_BUTTON_HEIGHT,
+                    FONT_PATH
+                )
+            else:
+                button_rect = None
+
             if network_client.game_over:
                 if network_client.winner == "平局":
                     show_status(screen, "平局！", FONT_PATH, MARGIN)
@@ -192,6 +288,8 @@ while True:
                 status = f"当前玩家：{get_chinese_player(network_client.current_player)}"
                 if network_client.current_player == network_client.player:
                     status += " 你的回合"
+                    if network_client.can_pass():
+                        status += "[P键让棋]"
                 else:
                     status += " 等待对手..."
                 show_status(screen, status, FONT_PATH, MARGIN)

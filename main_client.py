@@ -3,7 +3,7 @@ import sys
 import os
 
 from network.client import GameClient
-from ui.renderer import draw_board, show_status, show_winner_popup
+from ui.renderer import draw_board, show_status, show_winner_popup, draw_pass_button
 
 # ========== 常量 ==========
 BOARD_SIZE = 15
@@ -13,6 +13,12 @@ WIDTH = MARGIN * 2 + (BOARD_SIZE - 1) * CELL_SIZE
 HEIGHT = WIDTH
 VALID_RADIUS = 15
 FONT_PATH = 'C:/Windows/Fonts/simhei.ttf'
+
+PASS_BUTTON_X = WIDTH - 160
+PASS_BUTTON_Y = 10
+PASS_BUTTON_WIDTH = 140
+PASS_BUTTON_HEIGHT = 40
+PASS_BUTTON_RECT = None
 
 # ========== 初始化 ==========
 pygame.init()
@@ -59,9 +65,10 @@ while True:
             sys.exit()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if client.game_over:
-                # 游戏结束，点击重新开始
-                client.send_reset()
+            if PASS_BUTTON_RECT and PASS_BUTTON_RECT.collidepoint(event.pos):
+                client.send_pass()
+            elif client.game_over:
+                client.send_reset()# 游戏结束，点击重新开始
             else:
                 x, y = event.pos
                 col = round((x - MARGIN) / CELL_SIZE)
@@ -75,9 +82,29 @@ while True:
                 if (dx ** 2 + dy ** 2 <= VALID_RADIUS ** 2 and
                     0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE):
                     client.send_move(row, col)
+                pass
+
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                client.send_pass()
 
     # ========== 绘制 ==========
     draw_board(screen, client.board, BOARD_SIZE, CELL_SIZE, MARGIN)
+
+    # 绘制让棋按钮（游戏未结束时才显示）
+    if not client.game_over:
+        pass_button_rect = draw_pass_button(
+            screen,
+            client.pass_count,
+            client.max_pass,
+            PASS_BUTTON_X,
+            PASS_BUTTON_Y,
+            PASS_BUTTON_WIDTH,
+            PASS_BUTTON_HEIGHT,
+            FONT_PATH
+        )
+    else:
+        pass_button_rect = None
 
     if client.game_over:
         if client.winner == "平局":
@@ -92,6 +119,9 @@ while True:
         status = f"当前玩家：{get_chinese_player(client.current_player)}"
         if client.current_player == client.player:
             status += " 你的回合"
+            # 显示让棋快捷键提示
+            if client.can_pass():
+                status += "  [P键让棋]"
         else:
             status += " 等待对手..."
         show_status(screen, status, FONT_PATH, MARGIN)
