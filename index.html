@@ -917,6 +917,10 @@
             }
         }
 
+        // 1. 修改 WebSocket 地址（找到这行，改成你的服务器地址）
+        const wsUrl = 'ws://localhost:8765';  // ← 改这里
+
+        // 2. 完整的消息处理
         function handleNetworkMessage(msg) {
             console.log('收到网络消息:', msg);
             switch (msg.type) {
