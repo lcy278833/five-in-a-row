@@ -1,122 +1,1007 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>五子棋</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #2c3e50; font-family: Arial, sans-serif; }
-        .container { text-align: center; }
-        canvas { background: #deb887; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: pointer; }
-        .status { color: white; font-size: 24px; margin-top: 15px; }
-        .btn { margin-top: 10px; padding: 10px 30px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; background: #3498db; color: white; }
-        .btn:hover { background: #2980b9; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            user-select: none;
+        }
+        .container {
+            background: #16213e;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        .header .title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #f0c27f;
+        }
+        .header .status {
+            font-size: 18px;
+            padding: 6px 18px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .header .status .highlight {
+            color: #f0c27f;
+            font-weight: bold;
+        }
+        .canvas-wrapper {
+            background: #deb887;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 560px;
+            height: 560px;
+            border-radius: 8px;
+            cursor: pointer;
+            touch-action: none;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .controls .left {
+            display: flex;
+            gap: 10px;
+        }
+        .controls .right {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #fff;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-pass {
+            background: #27ae60;
+        }
+        .btn-pass:hover {
+            background: #2ecc71;
+        }
+        .btn-pass:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .btn-reset {
+            background: #e67e22;
+        }
+        .btn-reset:hover {
+            background: #f39c12;
+        }
+        .btn-mode {
+            background: #3498db;
+        }
+        .btn-mode:hover {
+            background: #5dade2;
+        }
+        .btn-mode.active {
+            background: #2ecc71;
+        }
+        .btn-online {
+            background: #9b59b6;
+        }
+        .btn-online:hover {
+            background: #af7ac5;
+        }
+        .btn-online.connected {
+            background: #e74c3c;
+        }
+        .btn-online.connected:hover {
+            background: #c0392b;
+        }
+
+        /* 弹窗遮罩 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 50px;
+            text-align: center;
+            max-width: 400px;
+            animation: popIn 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+        @keyframes popIn {
+            from {
+                transform: scale(0.7);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .modal-box .winner {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .modal-box .winner.black {
+            color: #1a1a1a;
+        }
+        .modal-box .winner.white {
+            color: #666;
+        }
+        .modal-box .winner.draw {
+            color: #f39c12;
+        }
+        .modal-box .sub {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .modal-box .btn {
+            padding: 10px 40px;
+            background: #2ecc71;
+            font-size: 18px;
+        }
+        .modal-box .btn:hover {
+            background: #27ae60;
+        }
+
+        /* 网络对战状态 */
+        .online-status {
+            font-size: 13px;
+            color: #aaa;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .online-status .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .online-status .dot.green {
+            background: #2ecc71;
+        }
+        .online-status .dot.red {
+            background: #e74c3c;
+        }
+        .online-status .dot.yellow {
+            background: #f1c40f;
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            .container {
+                padding: 15px;
+                border-radius: 12px;
+            }
+            canvas {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 1/1;
+            }
+            .canvas-wrapper {
+                padding: 6px;
+            }
+            .header .title {
+                font-size: 16px;
+            }
+            .header .status {
+                font-size: 14px;
+                padding: 4px 12px;
+            }
+            .btn {
+                font-size: 12px;
+                padding: 6px 14px;
+            }
+            .controls {
+                gap: 8px;
+            }
+            .modal-box {
+                padding: 30px 25px;
+                margin: 0 20px;
+            }
+            .modal-box .winner {
+                font-size: 28px;
+            }
+        }
+
+        /* 模式选择菜单 */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+        .menu-overlay.hidden {
+            display: none;
+        }
+        .menu-box {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 30px;
+            padding: 50px 60px;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9);
+            max-width: 420px;
+            width: 90%;
+        }
+        .menu-box h1 {
+            color: #f0c27f;
+            font-size: 42px;
+            margin-bottom: 8px;
+            letter-spacing: 4px;
+        }
+        .menu-box .subtitle {
+            color: #888;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .menu-box .menu-btn {
+            display: block;
+            width: 100%;
+            padding: 14px 0;
+            margin-bottom: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.25s;
+            color: #fff;
+        }
+        .menu-box .menu-btn:hover {
+            transform: scale(1.03);
+        }
+        .menu-box .menu-btn.local {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        .menu-box .menu-btn.local:hover {
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.4);
+        }
+        .menu-box .menu-btn.online {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        .menu-box .menu-btn.online:hover {
+            box-shadow: 0 0 30px rgba(155, 89, 182, 0.4);
+        }
+        .menu-box .menu-btn.exit {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        .menu-box .menu-btn.exit:hover {
+            box-shadow: 0 0 30px rgba(231, 76, 60, 0.4);
+        }
+        .menu-box .menu-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .menu-box .hint {
+            color: #666;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+        .menu-box .hint kbd {
+            background: #333;
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .pass-info {
+            font-size: 13px;
+            color: #aaa;
+            margin-left: 6px;
+        }
+        .pass-info .count {
+            color: #f0c27f;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <canvas id="boardCanvas" width="560" height="560"></canvas>
-    <div class="status" id="statusMsg">黑棋走</div>
-    <button class="btn" onclick="resetGame()">重新开始</button>
-</div>
-<script>
-    // ========== 常量 ==========
-    const BOARD_SIZE = 15;
-    const CELL_SIZE = 560 / (BOARD_SIZE + 1);
-    const MARGIN = CELL_SIZE / 2;
-    const canvas = document.getElementById('boardCanvas');
-    const ctx = canvas.getContext('2d');
-    const statusMsg = document.getElementById('statusMsg');
 
-    // ========== 游戏状态 ==========
-    let board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
-    let currentPlayer = 'black';
-    let gameOver = false;
+    <!-- ===== 菜单 ===== -->
+    <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-box">
+            <h1>♟ 五子棋</h1>
+            <div class="subtitle">选择游戏模式</div>
+            <button class="menu-btn local" onclick="startLocalGame()">👥 双人对战</button>
+            <button class="menu-btn online" id="onlineBtn" onclick="startOnlineGame()">🌐 网络对战</button>
+            <button class="menu-btn exit" onclick="exitGame()">✕ 退出</button>
+            <div class="hint">
+                按 <kbd>ESC</kbd> 返回菜单 &nbsp;·&nbsp; 按 <kbd>P</kbd> 让棋
+            </div>
+        </div>
+    </div>
 
-    // ========== 绘制棋盘 ==========
-    function drawBoard() {
-        ctx.fillStyle = '#deb887';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < BOARD_SIZE; i++) {
-            const pos = MARGIN + i * CELL_SIZE;
-            ctx.beginPath();
-            ctx.moveTo(MARGIN, pos);
-            ctx.lineTo(canvas.width - MARGIN, pos);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos, MARGIN);
-            ctx.lineTo(pos, canvas.height - MARGIN);
-            ctx.stroke();
+    <!-- ===== 主游戏容器 ===== -->
+    <div class="container" id="gameContainer" style="display:none;">
+        <div class="header">
+            <span class="title">♟ 五子棋</span>
+            <span class="status" id="statusMsg">⚫ 黑棋走</span>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="boardCanvas" width="560" height="560"></canvas>
+        </div>
+        <div class="controls">
+            <div class="left">
+                <button class="btn btn-pass" id="passBtn" onclick="doPass()">让棋 (<span id="passCount">0</span>/3)</button>
+                <button class="btn btn-reset" onclick="resetGame()">🔄 重新开始</button>
+            </div>
+            <div class="right">
+                <button class="btn btn-mode" id="modeBtn" onclick="toggleMode()">👥 双人</button>
+                <button class="btn btn-online" id="onlineStatusBtn" onclick="toggleOnline()">🌐 离线</button>
+            </div>
+        </div>
+        <div class="online-status" id="onlineStatusText">
+            <span class="dot red"></span> 未连接服务器
+        </div>
+    </div>
+
+    <!-- ===== 胜利弹窗 ===== -->
+    <div class="modal-overlay" id="winModal">
+        <div class="modal-box">
+            <div class="winner" id="winnerText">⚫ 黑棋 获胜！</div>
+            <div class="sub" id="winnerSub">点击下方按钮重新开始</div>
+            <button class="btn" onclick="closeWinModal()">🔄 重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  常量
+        // ============================================================
+        const BOARD_SIZE = 15;
+        const CELL_SIZE = 560 / (BOARD_SIZE + 1);
+        const MARGIN = CELL_SIZE / 2;
+        const MAX_PASS = 3;
+
+        // ============================================================
+        //  DOM 引用
+        // ============================================================
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusMsg = document.getElementById('statusMsg');
+        const passBtn = document.getElementById('passBtn');
+        const passCountSpan = document.getElementById('passCount');
+        const winModal = document.getElementById('winModal');
+        const winnerText = document.getElementById('winnerText');
+        const winnerSub = document.getElementById('winnerSub');
+        const modeBtn = document.getElementById('modeBtn');
+        const onlineStatusBtn = document.getElementById('onlineStatusBtn');
+        const onlineStatusText = document.getElementById('onlineStatusText');
+        const menuOverlay = document.getElementById('menuOverlay');
+        const gameContainer = document.getElementById('gameContainer');
+
+        // ============================================================
+        //  游戏状态
+        // ============================================================
+        let board = [];
+        let currentPlayer = 'black'; // 'black' | 'white'
+        let gameOver = false;
+        let passCount = 0;
+        let lastWasPass = false;
+        let mode = 'local'; // 'local' | 'online'
+        let isOnline = false;
+        let ws = null;
+        let playerColor = null; // 网络模式：自己是什么颜色
+        let isMyTurn = false;
+        let winner = null;
+        let isMenuOpen = true;
+
+        // ============================================================
+        //  初始化
+        // ============================================================
+        function initBoard() {
+            board = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                board.push(new Array(BOARD_SIZE).fill(null));
+            }
+            currentPlayer = 'black';
+            gameOver = false;
+            passCount = 0;
+            lastWasPass = false;
+            winner = null;
+            isMyTurn = (mode === 'local' || playerColor === 'black');
+            updateUI();
         }
-        // 画棋子
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                if (board[r][c]) {
-                    ctx.beginPath();
-                    ctx.arc(MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE, CELL_SIZE/2 - 2, 0, Math.PI * 2);
-                    ctx.fillStyle = board[r][c] === 'black' ? '#000' : '#fff';
-                    ctx.fill();
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
+
+        // ============================================================
+        //  绘制
+        // ============================================================
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 背景
+            ctx.fillStyle = '#deb887';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 网格
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                const pos = MARGIN + i * CELL_SIZE;
+                ctx.beginPath();
+                ctx.moveTo(MARGIN, pos);
+                ctx.lineTo(canvas.width - MARGIN, pos);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(pos, MARGIN);
+                ctx.lineTo(pos, canvas.height - MARGIN);
+                ctx.stroke();
+            }
+
+            // 棋子
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const val = board[r][c];
+                    if (val) {
+                        const x = MARGIN + c * CELL_SIZE;
+                        const y = MARGIN + r * CELL_SIZE;
+                        const radius = CELL_SIZE / 2 - 3;
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, Math.PI * 2);
+                        ctx.fillStyle = val === 'black' ? '#1a1a1a' : '#f5f5f5';
+                        ctx.fill();
+                        ctx.strokeStyle = val === 'black' ? '#000' : '#ccc';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        // 高光
+                        if (val === 'black') {
+                            ctx.beginPath();
+                            ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.2, 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                            ctx.fill();
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    // ========== 检查胜负 ==========
-    function checkWin(row, col, player) {
-        const directions = [[0,1],[1,0],[1,1],[1,-1]];
-        for (let [dr, dc] of directions) {
-            let count = 1;
-            for (let dir of [1, -1]) {
-                for (let step = 1; step < 5; step++) {
-                    const r = row + dr * step * dir, c = col + dc * step * dir;
-                    if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE || board[r][c] !== player) break;
-                    count++;
+            // 最后一步标记
+            // 可以加一个红点标记最后落子位置
+        }
+
+        // ============================================================
+        //  UI 更新
+        // ============================================================
+        function updateUI() {
+            // 状态文字
+            let status = '';
+            if (gameOver) {
+                if (winner === 'draw') {
+                    status = '🤝 平局！';
+                } else if (winner) {
+                    const cn = winner === 'black' ? '⚫ 黑棋' : '⚪ 白棋';
+                    status = `🏆 ${cn} 获胜！`;
+                } else {
+                    status = '⏸ 游戏结束';
+                }
+            } else {
+                const cn = currentPlayer === 'black' ? '⚫ 黑棋' : '⚪ 白棋';
+                const turn = (mode === 'local' || currentPlayer === playerColor) ? ' ← 你的回合' : ' ← 等待对手...';
+                status = cn + '走' + (mode === 'online' ? turn : '');
+            }
+            statusMsg.textContent = status;
+
+            // 让棋按钮
+            const canPass = !gameOver && passCount < MAX_PASS && (mode === 'local' || (isMyTurn && !gameOver));
+            passBtn.disabled = !canPass;
+            passCountSpan.textContent = passCount;
+
+            // 模式按钮
+            modeBtn.textContent = mode === 'local' ? '👥 双人' : '🌐 网络';
+            modeBtn.className = 'btn btn-mode' + (mode === 'online' ? ' active' : '');
+
+            // 网络状态按钮
+            if (isOnline && ws && ws.readyState === WebSocket.OPEN) {
+                onlineStatusBtn.textContent = '🌐 已连接';
+                onlineStatusBtn.className = 'btn btn-online connected';
+                onlineStatusText.innerHTML = '<span class="dot green"></span> 已连接服务器 - 你执 ' + (playerColor === 'black' ?
+                    '⚫ 黑棋' : '⚪ 白棋');
+            } else if (isOnline) {
+                onlineStatusBtn.textContent = '🌐 连接中...';
+                onlineStatusBtn.className = 'btn btn-online';
+                onlineStatusText.innerHTML = '<span class="dot yellow"></span> 正在连接...';
+            } else {
+                onlineStatusBtn.textContent = '🌐 离线';
+                onlineStatusBtn.className = 'btn btn-online';
+                onlineStatusText.innerHTML = '<span class="dot red"></span> 未连接服务器';
+            }
+
+            drawBoard();
+        }
+
+        // ============================================================
+        //  游戏逻辑
+        // ============================================================
+        function getChinese(player) {
+            return player === 'black' ? '黑棋' : '白棋';
+        }
+
+        function checkWin(row, col, player) {
+            const directions = [
+                [0, 1],
+                [1, 0],
+                [1, 1],
+                [1, -1]
+            ];
+            for (let [dr, dc] of directions) {
+                let count = 1;
+                for (let dir of [1, -1]) {
+                    for (let step = 1; step < 5; step++) {
+                        const r = row + dr * step * dir;
+                        const c = col + dc * step * dir;
+                        if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE || board[r][c] !== player) break;
+                        count++;
+                    }
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        function isBoardFull() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === null) return false;
                 }
             }
-            if (count >= 5) return true;
+            return true;
         }
-        return false;
-    }
 
-    // ========== 落子 ==========
-    function handleClick(e) {
-        if (gameOver) return;
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
-        const col = Math.round((x - MARGIN) / CELL_SIZE);
-        const row = Math.round((y - MARGIN) / CELL_SIZE);
-        if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE || board[row][col]) return;
-        board[row][col] = currentPlayer;
-        if (checkWin(row, col, currentPlayer)) {
-            gameOver = true;
-            statusMsg.innerText = (currentPlayer === 'black' ? '黑棋' : '白棋') + ' 获胜！';
-        } else {
+        function canPass() {
+            return !gameOver && passCount < MAX_PASS && (mode === 'local' || isMyTurn);
+        }
+
+        function doPass() {
+            if (!canPass()) return;
+            if (mode === 'online' && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'pass', player: playerColor }));
+                return;
+            }
+            // 本地模式
+            passCount++;
+            lastWasPass = true;
             currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-            statusMsg.innerText = (currentPlayer === 'black' ? '黑棋' : '白棋') + '走';
+            isMyTurn = true;
+            updateUI();
         }
-        drawBoard();
-    }
 
-    // ========== 重置 =========
-    function resetGame() {
-        board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
-        currentPlayer = 'black';
-        gameOver = false;
-        statusMsg.innerText = '黑棋走';
-        drawBoard();
-    }
+        function placePiece(row, col) {
+            if (gameOver) return false;
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return false;
+            if (board[row][col] !== null) return false;
+            if (mode === 'online' && !isMyTurn) return false;
 
-    // ========== 启动 ==========
-    canvas.addEventListener('click', handleClick);
-    resetGame();
-</script>
+            board[row][col] = currentPlayer;
+            lastWasPass = false;
+
+            if (checkWin(row, col, currentPlayer)) {
+                gameOver = true;
+                winner = currentPlayer;
+                updateUI();
+                showWinModal(getChinese(currentPlayer) + ' 获胜！');
+                return true;
+            } else if (isBoardFull()) {
+                gameOver = true;
+                winner = 'draw';
+                updateUI();
+                showWinModal('平局！');
+                return true;
+            }
+
+            currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            if (mode === 'online') {
+                isMyTurn = (currentPlayer === playerColor);
+            }
+            updateUI();
+            return true;
+        }
+
+        // ============================================================
+        //  点击事件
+        // ============================================================
+        function handleCanvasClick(e) {
+            if (gameOver) return;
+            if (mode === 'online' && !isMyTurn) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            const col = Math.round((x - MARGIN) / CELL_SIZE);
+            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
+            if (board[row][col] !== null) return;
+
+            if (mode === 'online') {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'move',
+                        row: row,
+                        col: col,
+                        player: playerColor
+                    }));
+                }
+            } else {
+                placePiece(row, col);
+            }
+        }
+
+        canvas.addEventListener('click', handleCanvasClick);
+        // 触屏支持
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
+            const col = Math.round((x - MARGIN) / CELL_SIZE);
+            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
+            if (board[row][col] !== null) return;
+            if (gameOver) return;
+            if (mode === 'online' && !isMyTurn) return;
+
+            if (mode === 'online') {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'move',
+                        row: row,
+                        col: col,
+                        player: playerColor
+                    }));
+                }
+            } else {
+                placePiece(row, col);
+            }
+        }, { passive: false });
+
+        // ============================================================
+        //  键盘事件
+        // ============================================================
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                doPass();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (!isMenuOpen) {
+                    showMenu();
+                }
+            }
+        });
+
+        // ============================================================
+        //  胜利弹窗
+        // ============================================================
+        function showWinModal(text) {
+            winnerText.textContent = text;
+            winnerText.className = 'winner';
+            if (text.includes('黑棋')) winnerText.className += ' black';
+            else if (text.includes('白棋')) winnerText.className += ' white';
+            else if (text.includes('平局')) winnerText.className += ' draw';
+            winnerSub.textContent = '点击下方按钮重新开始';
+            winModal.classList.add('show');
+        }
+
+        function closeWinModal() {
+            winModal.classList.remove('show');
+            resetGame();
+        }
+
+        // ============================================================
+        //  重置
+        // ============================================================
+        function resetGame() {
+            initBoard();
+            if (mode === 'online' && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'reset' }));
+            }
+            winModal.classList.remove('show');
+            updateUI();
+        }
+
+        // ============================================================
+        //  模式切换
+        // ============================================================
+        function toggleMode() {
+            if (mode === 'local') {
+                // 切换到网络
+                if (isOnline && ws) {
+                    ws.close();
+                }
+                mode = 'online';
+                isOnline = false;
+                ws = null;
+                playerColor = null;
+                isMyTurn = false;
+                // 显示菜单让用户选择
+                showMenu();
+            } else {
+                mode = 'local';
+                isOnline = false;
+                if (ws) { ws.close();
+                    ws = null; }
+                playerColor = null;
+                isMyTurn = true;
+                initBoard();
+                updateUI();
+            }
+        }
+
+        function toggleOnline() {
+            if (isOnline && ws) {
+                ws.close();
+                isOnline = false;
+                ws = null;
+                playerColor = null;
+                isMyTurn = false;
+                updateUI();
+                return;
+            }
+            // 尝试连接
+            showMenu();
+        }
+
+        // ============================================================
+        //  菜单
+        // ============================================================
+        function showMenu() {
+            isMenuOpen = true;
+            menuOverlay.classList.remove('hidden');
+            gameContainer.style.display = 'none';
+            if (mode === 'online' && ws) {
+                ws.close();
+                ws = null;
+                isOnline = false;
+            }
+        }
+
+        function hideMenu() {
+            isMenuOpen = false;
+            menuOverlay.classList.add('hidden');
+            gameContainer.style.display = 'block';
+            // 如果是在线模式，显示连接状态
+            if (mode === 'online') {
+                updateUI();
+            }
+        }
+
+        function startLocalGame() {
+            mode = 'local';
+            isOnline = false;
+            if (ws) { ws.close();
+                ws = null; }
+            playerColor = null;
+            isMyTurn = true;
+            initBoard();
+            hideMenu();
+            updateUI();
+        }
+
+        // ============================================================
+        //  网络对战
+        // ============================================================
+        let wsReconnectTimer = null;
+
+        function startOnlineGame() {
+            const btn = document.getElementById('onlineBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 连接中...';
+
+            mode = 'online';
+            isOnline = true;
+            playerColor = null;
+            isMyTurn = false;
+            initBoard();
+
+            // 使用 WebSocket 连接（需要后端支持）
+            // 这里使用一个公共的 WebSocket 测试服务器，实际需要自己部署
+            // 注意：真正的网络对战需要后端服务器，这里只做演示
+            const wsUrl = 'wss://echo.websocket.org'; // 测试用 echo 服务器
+            // 实际使用时需要替换为自己的 WebSocket 服务器地址
+
+            try {
+                ws = new WebSocket(wsUrl);
+                ws.onopen = function() {
+                    console.log('WebSocket 已连接');
+                    isOnline = true;
+                    btn.disabled = false;
+                    btn.textContent = '🌐 网络对战';
+                    // 发送加入房间消息
+                    ws.send(JSON.stringify({ type: 'join', room: 'gomoku' }));
+                    hideMenu();
+                    updateUI();
+                };
+                ws.onmessage = function(event) {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleNetworkMessage(msg);
+                    } catch (e) {
+                        console.warn('收到无效消息:', event.data);
+                    }
+                };
+                ws.onerror = function(error) {
+                    console.error('WebSocket 错误:', error);
+                    isOnline = false;
+                    btn.disabled = false;
+                    btn.textContent = '🌐 网络对战';
+                    updateUI();
+                    alert('连接服务器失败，请稍后重试');
+                };
+                ws.onclose = function() {
+                    console.log('WebSocket 已断开');
+                    isOnline = false;
+                    btn.disabled = false;
+                    btn.textContent = '🌐 网络对战';
+                    if (mode === 'online') {
+                        updateUI();
+                        // 自动重连
+                        if (!gameOver) {
+                            // 简单重试
+                        }
+                    }
+                };
+            } catch (e) {
+                alert('无法创建 WebSocket 连接');
+                btn.disabled = false;
+                btn.textContent = '🌐 网络对战';
+                mode = 'local';
+                isOnline = false;
+            }
+        }
+
+        function handleNetworkMessage(msg) {
+            console.log('收到网络消息:', msg);
+            switch (msg.type) {
+                case 'init':
+                    playerColor = msg.player;
+                    isMyTurn = (playerColor === 'black');
+                    updateUI();
+                    break;
+                case 'sync':
+                    // 同步棋盘
+                    if (msg.board) {
+                        board = msg.board;
+                    }
+                    if (msg.current_player) {
+                        currentPlayer = msg.current_player;
+                        isMyTurn = (currentPlayer === playerColor);
+                    }
+                    if (msg.pass_count !== undefined) {
+                        passCount = msg.pass_count;
+                    }
+                    if (msg.game_over !== undefined) {
+                        gameOver = msg.game_over;
+                    }
+                    if (msg.winner) {
+                        winner = msg.winner;
+                        gameOver = true;
+                        showWinModal(getChinese(winner) + ' 获胜！');
+                    }
+                    updateUI();
+                    break;
+                case 'win':
+                    gameOver = true;
+                    winner = msg.winner;
+                    showWinModal(getChinese(winner) + ' 获胜！');
+                    updateUI();
+                    break;
+                case 'pass_notify':
+                    passCount = msg.pass_count || 0;
+                    currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+                    isMyTurn = (currentPlayer === playerColor);
+                    updateUI();
+                    break;
+                case 'reset':
+                    initBoard();
+                    updateUI();
+                    break;
+                default:
+                    console.log('未知消息类型:', msg.type);
+            }
+        }
+
+        // ============================================================
+        //  退出
+        // ============================================================
+        function exitGame() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#1a1a2e;color:#888;font-size:20px;font-family:Arial;">已退出 — 重新打开页面即可</div>';
+        }
+
+        // ============================================================
+        //  启动游戏（默认显示菜单）
+        // ============================================================
+        initBoard();
+        showMenu();
+        updateUI();
+
+        // 如果 WebSocket 不可用，显示提示
+        if (!window.WebSocket) {
+            console.warn('当前浏览器不支持 WebSocket，网络对战功能不可用');
+        }
+
+        // 暴露函数到全局
+        window.startLocalGame = startLocalGame;
+        window.startOnlineGame = startOnlineGame;
+        window.exitGame = exitGame;
+        window.doPass = doPass;
+        window.resetGame = resetGame;
+        window.toggleMode = toggleMode;
+        window.toggleOnline = toggleOnline;
+        window.closeWinModal = closeWinModal;
+        window.showMenu = showMenu;
+    </script>
+
 </body>
 </html>
