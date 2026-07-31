@@ -2,13 +2,11 @@ import asyncio
 import websockets
 import json
 
-# 存储房间
 rooms = {}
 
 
-async def handler(websocket, path):
-    room_id = 'gomoku'  # 固定房间号
-    player = None
+async def handler(websocket):
+    room_id = 'gomoku'
 
     try:
         async for message in websocket:
@@ -16,9 +14,7 @@ async def handler(websocket, path):
                 data = json.loads(message)
                 print(f"收到消息: {data}")
 
-                # 处理加入房间
                 if data.get('type') == 'join':
-                    # 如果房间不存在，创建房间
                     if room_id not in rooms:
                         rooms[room_id] = {
                             'clients': [],
@@ -26,41 +22,45 @@ async def handler(websocket, path):
                             'current_player': 'black',
                             'pass_count': 0,
                             'game_over': False,
-                            'winner': None
+                            'winner': None,
+                            'ready': False
                         }
 
-                    # 如果房间已有2人，拒绝加入
-                    if len(rooms[room_id]['clients']) >= 2:
+                    room = rooms[room_id]
+
+                    if len(room['clients']) >= 2:
                         await websocket.send(json.dumps({
                             'type': 'error',
                             'message': '房间已满'
                         }))
                         continue
 
-                    # 分配颜色：第一个黑棋，第二个白棋
-                    player = 'black' if len(rooms[room_id]['clients']) == 0 else 'white'
-                    rooms[room_id]['clients'].append({
+                    player = 'black' if len(room['clients']) == 0 else 'white'
+                    room['clients'].append({
                         'ws': websocket,
                         'player': player
                     })
 
-                    print(f"玩家加入: {player}, 当前房间人数: {len(rooms[room_id]['clients'])}")
+                    print(f"玩家加入: {player}, 当前房间人数: {len(room['clients'])}")
 
                     # 发送初始化消息
                     await websocket.send(json.dumps({
                         'type': 'init',
                         'player': player,
-                        'board': rooms[room_id]['board'],
-                        'current_player': rooms[room_id]['current_player']
+                        'board': room['board'],
+                        'current_player': room['current_player']
                     }))
 
-                    # 如果已有2人，通知双方游戏开始
-                    if len(rooms[room_id]['clients']) == 2:
+                    # 如果已有2人，通知双方游戏开始并同步状态
+                    if len(room['clients']) == 2:
+                        room['ready'] = True
+                        print("两个玩家已连接，游戏开始！")
+                        # 广播开始消息
                         await broadcast_room(room_id, {
                             'type': 'start',
                             'message': '游戏开始！黑棋先走'
                         })
-                        # 同步完整棋盘状态给所有客户端
+                        # 同步完整棋盘状态
                         await sync_board(room_id)
 
                     continue
@@ -71,18 +71,38 @@ async def handler(websocket, path):
                     if not room:
                         continue
 
-                    # 验证是否轮到自己
-                    if data.get('player') != room['current_player']:
+                    if not room['ready']:
                         await websocket.send(json.dumps({
                             'type': 'error',
-                            'message': '还没轮到你'
+                            'message': '等待对手加入'
+                        }))
+                        continue
+
+                    if room['game_over']:
+                        await websocket.send(json.dumps({
+                            'type': 'error',
+                            'message': '游戏已结束'
+                        }))
+                        continue
+
+                    # 验证当前玩家
+                    if data.get('player') != room['current_player']:
+                        print(f"错误: 当前玩家是 {room['current_player']}，但 {data.get('player')} 尝试落子")
+                        await websocket.send(json.dumps({
+                            'type': 'error',
+                            'message': f'还没轮到你，当前是 {room["current_player"]}'
                         }))
                         continue
 
                     row = data.get('row')
                     col = data.get('col')
 
-                    # 落子
+                    if row is None or col is None:
+                        continue
+
+                    if row < 0 or row >= 15 or col < 0 or col >= 15:
+                        continue
+
                     if room['board'][row][col] is not None:
                         await websocket.send(json.dumps({
                             'type': 'error',
@@ -90,12 +110,15 @@ async def handler(websocket, path):
                         }))
                         continue
 
+                    # 执行落子
                     room['board'][row][col] = data['player']
+                    print(f"{data['player']} 落子 ({row}, {col})")
 
                     # 检查胜负
                     if check_win(room['board'], row, col, data['player']):
                         room['game_over'] = True
                         room['winner'] = data['player']
+                        print(f"{data['player']} 获胜！")
                         await broadcast_room(room_id, {
                             'type': 'win',
                             'winner': data['player']
@@ -103,7 +126,7 @@ async def handler(websocket, path):
                     else:
                         # 切换玩家
                         room['current_player'] = 'white' if room['current_player'] == 'black' else 'black'
-                        # 广播棋盘状态
+                        print(f"切换玩家: {room['current_player']}")
                         await sync_board(room_id)
 
                     continue
@@ -120,7 +143,7 @@ async def handler(websocket, path):
                     if data.get('player') != room['current_player']:
                         await websocket.send(json.dumps({
                             'type': 'error',
-                            'message': '还没轮到你'
+                            'message': f'还没轮到你，当前是 {room["current_player"]}'
                         }))
                         continue
 
@@ -133,6 +156,7 @@ async def handler(websocket, path):
 
                     room['pass_count'] += 1
                     room['current_player'] = 'white' if room['current_player'] == 'black' else 'black'
+                    print(f"{data['player']} 让棋，当前玩家: {room['current_player']}")
 
                     await broadcast_room(room_id, {
                         'type': 'pass_notify',
@@ -151,6 +175,7 @@ async def handler(websocket, path):
                         room['pass_count'] = 0
                         room['game_over'] = False
                         room['winner'] = None
+                        print("游戏已重置")
                         await broadcast_room(room_id, {
                             'type': 'reset'
                         })
@@ -166,7 +191,6 @@ async def handler(websocket, path):
     except websockets.exceptions.ConnectionClosed:
         print("客户端断开连接")
     finally:
-        # 清理断开连接的客户端
         if room_id in rooms:
             room = rooms[room_id]
             room['clients'] = [c for c in room['clients'] if c['ws'] != websocket]
@@ -176,7 +200,6 @@ async def handler(websocket, path):
 
 
 async def sync_board(room_id):
-    """同步棋盘状态给房间内所有客户端"""
     room = rooms.get(room_id)
     if not room:
         return
@@ -195,22 +218,29 @@ async def sync_board(room_id):
 
 
 async def broadcast_room(room_id, message):
-    """广播消息给房间内所有客户端"""
     room = rooms.get(room_id)
     if not room:
         return
 
     data = json.dumps(message)
-    for client_info in room['clients']:
+    # 使用 clients 副本遍历，避免修改时出错
+    for client_info in room['clients'][:]:
         try:
-            if client_info['ws'].open:
+            # 新版 websockets 使用 state 属性检查连接状态
+            # 如果连接正常，state 是 <State.OPEN: 1>
+            if client_info['ws'].state == websockets.protocol.State.OPEN:
                 await client_info['ws'].send(data)
+            else:
+                print(f"客户端连接已关闭，移除")
+                room['clients'].remove(client_info)
         except Exception as e:
             print(f"广播消息失败: {e}")
+            # 移除有问题的客户端
+            if client_info in room['clients']:
+                room['clients'].remove(client_info)
 
 
 def check_win(board, row, col, player):
-    """检查五子连珠"""
     directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
     for dr, dc in directions:
         count = 1
@@ -233,7 +263,7 @@ async def main():
         print("监听地址: 0.0.0.0:8765")
         print("等待玩家连接...")
         print("=" * 50)
-        await asyncio.Future()  # 永久运行
+        await asyncio.Future()
 
 
 if __name__ == "__main__":

@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>五子棋</title>
     <style>
+        /* ===== 全局重置 ===== */
         * {
             margin: 0;
             padding: 0;
@@ -16,78 +17,109 @@
             align-items: center;
             min-height: 100vh;
             background: #1a1a2e;
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
             user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
         }
+
+        /* ===== 游戏容器 ===== */
         .container {
             background: #16213e;
             border-radius: 20px;
-            padding: 30px;
+            padding: 25px 30px 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            max-width: 640px;
+            width: 100%;
+            margin: 15px;
         }
+
+        /* ===== 顶部栏 ===== */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             color: #fff;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .header .title {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
             color: #f0c27f;
+            letter-spacing: 2px;
         }
         .header .status {
-            font-size: 18px;
-            padding: 6px 18px;
+            font-size: 15px;
+            padding: 5px 16px;
             border-radius: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            white-space: nowrap;
         }
         .header .status .highlight {
             color: #f0c27f;
             font-weight: bold;
         }
+        .header .status .your-turn {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .header .status .waiting {
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        /* ===== 棋盘 ===== */
         .canvas-wrapper {
             background: #deb887;
             border-radius: 12px;
-            padding: 10px;
+            padding: 8px;
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
             position: relative;
         }
         canvas {
             display: block;
-            width: 560px;
-            height: 560px;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1/1;
             border-radius: 8px;
             cursor: pointer;
             touch-action: none;
+            background: #deb887;
         }
+
+        /* ===== 控制栏 ===== */
         .controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 15px;
-            gap: 12px;
+            margin-top: 14px;
+            gap: 10px;
             flex-wrap: wrap;
         }
         .controls .left {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
         .controls .right {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
+
         .btn {
-            padding: 8px 20px;
+            padding: 7px 16px;
             border: none;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
             color: #fff;
+            white-space: nowrap;
         }
         .btn:hover {
             transform: translateY(-2px);
@@ -96,23 +128,26 @@
         .btn:active {
             transform: translateY(0);
         }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
         .btn-pass {
             background: #27ae60;
         }
-        .btn-pass:hover {
+        .btn-pass:hover:not(:disabled) {
             background: #2ecc71;
         }
-        .btn-pass:disabled {
-            background: #555;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
+
         .btn-reset {
             background: #e67e22;
         }
         .btn-reset:hover {
             background: #f39c12;
         }
+
         .btn-mode {
             background: #3498db;
         }
@@ -122,10 +157,11 @@
         .btn-mode.active {
             background: #2ecc71;
         }
+
         .btn-online {
             background: #9b59b6;
         }
-        .btn-online:hover {
+        .btn-online:hover:not(:disabled) {
             background: #af7ac5;
         }
         .btn-online.connected {
@@ -135,74 +171,11 @@
             background: #c0392b;
         }
 
-        /* 弹窗遮罩 */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-overlay.show {
-            display: flex;
-        }
-        .modal-box {
-            background: #fff;
-            border-radius: 20px;
-            padding: 40px 50px;
-            text-align: center;
-            max-width: 400px;
-            animation: popIn 0.3s ease;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-        }
-        @keyframes popIn {
-            from {
-                transform: scale(0.7);
-                opacity: 0;
-            }
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        .modal-box .winner {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .modal-box .winner.black {
-            color: #1a1a1a;
-        }
-        .modal-box .winner.white {
-            color: #666;
-        }
-        .modal-box .winner.draw {
-            color: #f39c12;
-        }
-        .modal-box .sub {
-            font-size: 16px;
-            color: #888;
-            margin-bottom: 20px;
-        }
-        .modal-box .btn {
-            padding: 10px 40px;
-            background: #2ecc71;
-            font-size: 18px;
-        }
-        .modal-box .btn:hover {
-            background: #27ae60;
-        }
-
-        /* 网络对战状态 */
+        /* ===== 网络状态文字 ===== */
         .online-status {
             font-size: 13px;
             color: #aaa;
-            margin-top: 5px;
+            margin-top: 6px;
             text-align: center;
         }
         .online-status .dot {
@@ -222,55 +195,107 @@
             background: #f1c40f;
         }
 
-        /* 响应式 */
-        @media (max-width: 640px) {
-            .container {
-                padding: 15px;
-                border-radius: 12px;
-            }
-            canvas {
-                width: 100%;
-                height: auto;
-                aspect-ratio: 1/1;
-            }
-            .canvas-wrapper {
-                padding: 6px;
-            }
-            .header .title {
-                font-size: 16px;
-            }
-            .header .status {
-                font-size: 14px;
-                padding: 4px 12px;
-            }
-            .btn {
-                font-size: 12px;
-                padding: 6px 14px;
-            }
-            .controls {
-                gap: 8px;
-            }
-            .modal-box {
-                padding: 30px 25px;
-                margin: 0 20px;
-            }
-            .modal-box .winner {
-                font-size: 28px;
-            }
+        /* ===== 让棋信息 ===== */
+        .pass-info {
+            font-size: 12px;
+            color: #aaa;
+            margin-left: 4px;
+        }
+        .pass-info .count {
+            color: #f0c27f;
+            font-weight: bold;
         }
 
-        /* 模式选择菜单 */
+        /* ===== 胜利弹窗 ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: 24px;
+            padding: 40px 50px 35px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+            animation: popIn 0.3s ease;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9);
+        }
+        @keyframes popIn {
+            from {
+                transform: scale(0.7) translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        .modal-box .winner {
+            font-size: 34px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-box .winner.black {
+            color: #1a1a1a;
+        }
+        .modal-box .winner.white {
+            color: #666;
+        }
+        .modal-box .winner.draw {
+            color: #f39c12;
+        }
+        .modal-box .winner-emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .modal-box .sub {
+            font-size: 15px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .modal-box .btn-restart {
+            padding: 10px 40px;
+            background: #2ecc71;
+            font-size: 17px;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-box .btn-restart:hover {
+            background: #27ae60;
+            transform: scale(1.03);
+        }
+
+        /* ===== 菜单遮罩 ===== */
         .menu-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 999;
+            backdrop-filter: blur(6px);
         }
         .menu-overlay.hidden {
             display: none;
@@ -278,23 +303,23 @@
         .menu-box {
             background: linear-gradient(145deg, #1a1a2e, #16213e);
             border-radius: 30px;
-            padding: 50px 60px;
+            padding: 45px 50px 40px;
             text-align: center;
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9);
-            max-width: 420px;
-            width: 90%;
+            max-width: 400px;
+            width: 92%;
         }
         .menu-box h1 {
             color: #f0c27f;
-            font-size: 42px;
-            margin-bottom: 8px;
-            letter-spacing: 4px;
+            font-size: 40px;
+            margin-bottom: 4px;
+            letter-spacing: 6px;
         }
         .menu-box .subtitle {
             color: #888;
-            font-size: 16px;
-            margin-bottom: 30px;
+            font-size: 15px;
+            margin-bottom: 28px;
         }
         .menu-box .menu-btn {
             display: block;
@@ -303,42 +328,43 @@
             margin-bottom: 12px;
             border: none;
             border-radius: 12px;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.25s;
             color: #fff;
         }
-        .menu-box .menu-btn:hover {
+        .menu-box .menu-btn:hover:not(:disabled) {
             transform: scale(1.03);
-        }
-        .menu-box .menu-btn.local {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-        }
-        .menu-box .menu-btn.local:hover {
-            box-shadow: 0 0 30px rgba(46, 204, 113, 0.4);
-        }
-        .menu-box .menu-btn.online {
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-        }
-        .menu-box .menu-btn.online:hover {
-            box-shadow: 0 0 30px rgba(155, 89, 182, 0.4);
-        }
-        .menu-box .menu-btn.exit {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-        }
-        .menu-box .menu-btn.exit:hover {
-            box-shadow: 0 0 30px rgba(231, 76, 60, 0.4);
         }
         .menu-box .menu-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none !important;
         }
+        .menu-box .menu-btn.local {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        .menu-box .menu-btn.local:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.3);
+        }
+        .menu-box .menu-btn.online {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        .menu-box .menu-btn.online:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(155, 89, 182, 0.3);
+        }
+        .menu-box .menu-btn.exit {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        .menu-box .menu-btn.exit:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(231, 76, 60, 0.3);
+        }
         .menu-box .hint {
             color: #666;
             font-size: 13px;
-            margin-top: 15px;
+            margin-top: 16px;
+            line-height: 1.8;
         }
         .menu-box .hint kbd {
             background: #333;
@@ -346,16 +372,117 @@
             padding: 2px 10px;
             border-radius: 4px;
             font-size: 12px;
+            border: 1px solid #555;
         }
 
-        .pass-info {
-            font-size: 13px;
-            color: #aaa;
-            margin-left: 6px;
+        .menu-box .ws-config {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
-        .pass-info .count {
-            color: #f0c27f;
-            font-weight: bold;
+        .menu-box .ws-config label {
+            color: #888;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .menu-box .ws-config input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #0d0d1a;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .menu-box .ws-config input:focus {
+            border-color: #9b59b6;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 550px) {
+            .container {
+                padding: 15px 16px 20px;
+                margin: 10px;
+                border-radius: 14px;
+            }
+            .header .title {
+                font-size: 16px;
+            }
+            .header .status {
+                font-size: 13px;
+                padding: 4px 12px;
+            }
+            .btn {
+                font-size: 12px;
+                padding: 5px 12px;
+            }
+            .controls {
+                gap: 6px;
+            }
+            .controls .left,
+            .controls .right {
+                gap: 5px;
+            }
+            .menu-box {
+                padding: 30px 25px 28px;
+            }
+            .menu-box h1 {
+                font-size: 30px;
+            }
+            .menu-box .menu-btn {
+                font-size: 15px;
+                padding: 12px 0;
+            }
+            .modal-box {
+                padding: 30px 25px 28px;
+            }
+            .modal-box .winner {
+                font-size: 26px;
+            }
+            .modal-box .winner-emoji {
+                font-size: 38px;
+            }
+            .online-status {
+                font-size: 12px;
+            }
+            .pass-info {
+                font-size: 11px;
+            }
+            .menu-box .ws-config input {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+        }
+        @media (max-width: 400px) {
+            .container {
+                padding: 10px 10px 14px;
+                margin: 6px;
+                border-radius: 10px;
+            }
+            .header .title {
+                font-size: 14px;
+            }
+            .header .status {
+                font-size: 11px;
+                padding: 3px 10px;
+            }
+            .btn {
+                font-size: 11px;
+                padding: 4px 10px;
+            }
+            .menu-box h1 {
+                font-size: 26px;
+            }
+            .menu-box .menu-btn {
+                font-size: 14px;
+                padding: 10px 0;
+            }
         }
     </style>
 </head>
@@ -366,16 +493,20 @@
         <div class="menu-box">
             <h1>♟ 五子棋</h1>
             <div class="subtitle">选择游戏模式</div>
-            <button class="menu-btn local" onclick="startLocalGame()">👥 双人对战</button>
-            <button class="menu-btn online" id="onlineBtn" onclick="startOnlineGame()">🌐 网络对战</button>
+            <button class="menu-btn local" id="menuLocalBtn" onclick="startLocalGame()">👥 双人对战</button>
+            <button class="menu-btn online" id="menuOnlineBtn" onclick="startOnlineGame()">🌐 网络对战</button>
             <button class="menu-btn exit" onclick="exitGame()">✕ 退出</button>
             <div class="hint">
-                按 <kbd>ESC</kbd> 返回菜单 &nbsp;·&nbsp; 按 <kbd>P</kbd> 让棋
+                <kbd>ESC</kbd> 返回菜单 &nbsp;·&nbsp; <kbd>P</kbd> 让棋
+            </div>
+            <div class="ws-config">
+                <label>WebSocket 服务器地址</label>
+                <input type="text" id="wsUrlInput" value="ws://localhost:8765">
             </div>
         </div>
     </div>
 
-    <!-- ===== 主游戏容器 ===== -->
+    <!-- ===== 游戏主界面 ===== -->
     <div class="container" id="gameContainer" style="display:none;">
         <div class="header">
             <span class="title">♟ 五子棋</span>
@@ -386,8 +517,10 @@
         </div>
         <div class="controls">
             <div class="left">
-                <button class="btn btn-pass" id="passBtn" onclick="doPass()">让棋 (<span id="passCount">0</span>/3)</button>
-                <button class="btn btn-reset" onclick="resetGame()">🔄 重新开始</button>
+                <button class="btn btn-pass" id="passBtn" onclick="doPass()">
+                    让棋 (<span id="passCount">0</span>/3)
+                </button>
+                <button class="btn btn-reset" onclick="resetGame()">🔄 重开</button>
             </div>
             <div class="right">
                 <button class="btn btn-mode" id="modeBtn" onclick="toggleMode()">👥 双人</button>
@@ -402,9 +535,10 @@
     <!-- ===== 胜利弹窗 ===== -->
     <div class="modal-overlay" id="winModal">
         <div class="modal-box">
-            <div class="winner" id="winnerText">⚫ 黑棋 获胜！</div>
+            <span class="winner-emoji" id="winnerEmoji">🏆</span>
+            <div class="winner" id="winnerText">黑棋 获胜！</div>
             <div class="sub" id="winnerSub">点击下方按钮重新开始</div>
-            <button class="btn" onclick="closeWinModal()">🔄 重新开始</button>
+            <button class="btn-restart" onclick="closeWinModal()">🔄 重新开始</button>
         </div>
     </div>
 
@@ -413,8 +547,6 @@
         //  常量
         // ============================================================
         const BOARD_SIZE = 15;
-        const CELL_SIZE = 560 / (BOARD_SIZE + 1);
-        const MARGIN = CELL_SIZE / 2;
         const MAX_PASS = 3;
 
         // ============================================================
@@ -427,31 +559,35 @@
         const passCountSpan = document.getElementById('passCount');
         const winModal = document.getElementById('winModal');
         const winnerText = document.getElementById('winnerText');
+        const winnerEmoji = document.getElementById('winnerEmoji');
         const winnerSub = document.getElementById('winnerSub');
         const modeBtn = document.getElementById('modeBtn');
         const onlineStatusBtn = document.getElementById('onlineStatusBtn');
         const onlineStatusText = document.getElementById('onlineStatusText');
         const menuOverlay = document.getElementById('menuOverlay');
         const gameContainer = document.getElementById('gameContainer');
+        const wsUrlInput = document.getElementById('wsUrlInput');
 
         // ============================================================
         //  游戏状态
         // ============================================================
         let board = [];
-        let currentPlayer = 'black'; // 'black' | 'white'
+        let currentPlayer = 'black';
         let gameOver = false;
         let passCount = 0;
         let lastWasPass = false;
-        let mode = 'local'; // 'local' | 'online'
+        let mode = 'local';
         let isOnline = false;
         let ws = null;
-        let playerColor = null; // 网络模式：自己是什么颜色
+        let playerColor = null;
         let isMyTurn = false;
         let winner = null;
         let isMenuOpen = true;
+        let moveHistory = [];
+        let isProcessingMove = false;
 
         // ============================================================
-        //  初始化
+        //  棋盘初始化
         // ============================================================
         function initBoard() {
             board = [];
@@ -463,6 +599,7 @@
             passCount = 0;
             lastWasPass = false;
             winner = null;
+            moveHistory = [];
             isMyTurn = (mode === 'local' || playerColor === 'black');
             updateUI();
         }
@@ -471,24 +608,45 @@
         //  绘制
         // ============================================================
         function drawBoard() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // 背景
+            const w = canvas.width;
+            const h = canvas.height;
+            const margin = w / (BOARD_SIZE + 1);
+            const cellSize = w / (BOARD_SIZE + 1);
+
+            ctx.clearRect(0, 0, w, h);
             ctx.fillStyle = '#deb887';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, w, h);
 
             // 网格
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 1;
             for (let i = 0; i < BOARD_SIZE; i++) {
-                const pos = MARGIN + i * CELL_SIZE;
+                const pos = margin + i * cellSize;
                 ctx.beginPath();
-                ctx.moveTo(MARGIN, pos);
-                ctx.lineTo(canvas.width - MARGIN, pos);
+                ctx.moveTo(margin, pos);
+                ctx.lineTo(w - margin, pos);
                 ctx.stroke();
                 ctx.beginPath();
-                ctx.moveTo(pos, MARGIN);
-                ctx.lineTo(pos, canvas.height - MARGIN);
+                ctx.moveTo(pos, margin);
+                ctx.lineTo(pos, h - margin);
                 ctx.stroke();
+            }
+
+            // 天元/星位
+            const starPoints = [
+                [3, 3],
+                [3, 11],
+                [11, 3],
+                [11, 11],
+                [7, 7]
+            ];
+            ctx.fillStyle = '#000';
+            for (let [r, c] of starPoints) {
+                const x = margin + c * cellSize;
+                const y = margin + r * cellSize;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
             }
 
             // 棋子
@@ -496,36 +654,44 @@
                 for (let c = 0; c < BOARD_SIZE; c++) {
                     const val = board[r][c];
                     if (val) {
-                        const x = MARGIN + c * CELL_SIZE;
-                        const y = MARGIN + r * CELL_SIZE;
-                        const radius = CELL_SIZE / 2 - 3;
+                        const x = margin + c * cellSize;
+                        const y = margin + r * cellSize;
+                        const radius = cellSize / 2 - 3;
+                        // 阴影
+                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowOffsetX = 2;
+                        ctx.shadowOffsetY = 2;
                         ctx.beginPath();
                         ctx.arc(x, y, radius, 0, Math.PI * 2);
-                        ctx.fillStyle = val === 'black' ? '#1a1a1a' : '#f5f5f5';
-                        ctx.fill();
-                        ctx.strokeStyle = val === 'black' ? '#000' : '#ccc';
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        // 高光
+                        const gradient = ctx.createRadialGradient(
+                            x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+                            x, y, radius
+                        );
                         if (val === 'black') {
-                            ctx.beginPath();
-                            ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.2, 0, Math.PI * 2);
-                            ctx.fillStyle = 'rgba(255,255,255,0.15)';
-                            ctx.fill();
+                            gradient.addColorStop(0, '#666');
+                            gradient.addColorStop(1, '#000');
+                        } else {
+                            gradient.addColorStop(0, '#fff');
+                            gradient.addColorStop(1, '#ddd');
                         }
+                        ctx.fillStyle = gradient;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
+                        ctx.strokeStyle = val === 'black' ? '#000' : '#bbb';
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
                     }
                 }
             }
-
-            // 最后一步标记
-            // 可以加一个红点标记最后落子位置
         }
 
         // ============================================================
         //  UI 更新
         // ============================================================
         function updateUI() {
-            // 状态文字
             let status = '';
             if (gameOver) {
                 if (winner === 'draw') {
@@ -538,26 +704,30 @@
                 }
             } else {
                 const cn = currentPlayer === 'black' ? '⚫ 黑棋' : '⚪ 白棋';
-                const turn = (mode === 'local' || currentPlayer === playerColor) ? ' ← 你的回合' : ' ← 等待对手...';
-                status = cn + '走' + (mode === 'online' ? turn : '');
+                if (mode === 'local') {
+                    status = cn + '走';
+                } else {
+                    if (currentPlayer === playerColor) {
+                        status = cn + '走 ← <span class="your-turn">你的回合</span>';
+                    } else {
+                        status = cn + '走 ← <span class="waiting">等待对手...</span>';
+                    }
+                }
             }
-            statusMsg.textContent = status;
+            statusMsg.innerHTML = status;
 
-            // 让棋按钮
             const canPass = !gameOver && passCount < MAX_PASS && (mode === 'local' || (isMyTurn && !gameOver));
             passBtn.disabled = !canPass;
             passCountSpan.textContent = passCount;
 
-            // 模式按钮
             modeBtn.textContent = mode === 'local' ? '👥 双人' : '🌐 网络';
             modeBtn.className = 'btn btn-mode' + (mode === 'online' ? ' active' : '');
 
-            // 网络状态按钮
             if (isOnline && ws && ws.readyState === WebSocket.OPEN) {
                 onlineStatusBtn.textContent = '🌐 已连接';
                 onlineStatusBtn.className = 'btn btn-online connected';
-                onlineStatusText.innerHTML = '<span class="dot green"></span> 已连接服务器 - 你执 ' + (playerColor === 'black' ?
-                    '⚫ 黑棋' : '⚪ 白棋');
+                const colorName = playerColor === 'black' ? '⚫ 黑棋' : '⚪ 白棋';
+                onlineStatusText.innerHTML = '<span class="dot green"></span> 已连接服务器 - 你执 ' + colorName;
             } else if (isOnline) {
                 onlineStatusBtn.textContent = '🌐 连接中...';
                 onlineStatusBtn.className = 'btn btn-online';
@@ -615,15 +785,25 @@
 
         function doPass() {
             if (!canPass()) return;
-            if (mode === 'online' && ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'pass', player: playerColor }));
+            if (mode === 'online') {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'pass',
+                        player: playerColor
+                    }));
+                }
                 return;
             }
-            // 本地模式
+            executePass();
+        }
+
+        function executePass() {
             passCount++;
             lastWasPass = true;
             currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-            isMyTurn = true;
+            if (mode === 'online') {
+                isMyTurn = (currentPlayer === playerColor);
+            }
             updateUI();
         }
 
@@ -635,6 +815,7 @@
 
             board[row][col] = currentPlayer;
             lastWasPass = false;
+            moveHistory.push({ row, col, player: currentPlayer });
 
             if (checkWin(row, col, currentPlayer)) {
                 gameOver = true;
@@ -659,20 +840,36 @@
         }
 
         // ============================================================
-        //  点击事件
+        //  点击/触摸事件
         // ============================================================
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+            return { x, y };
+        }
+
         function handleCanvasClick(e) {
             if (gameOver) return;
             if (mode === 'online' && !isMyTurn) return;
 
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            const { x, y } = getCanvasCoords(e);
+            const margin = canvas.width / (BOARD_SIZE + 1);
+            const cellSize = canvas.width / (BOARD_SIZE + 1);
 
-            const col = Math.round((x - MARGIN) / CELL_SIZE);
-            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            const col = Math.round((x - margin) / cellSize);
+            const row = Math.round((y - margin) / cellSize);
             if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
             if (board[row][col] !== null) return;
 
@@ -691,35 +888,7 @@
         }
 
         canvas.addEventListener('click', handleCanvasClick);
-        // 触屏支持
-        canvas.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (touch.clientX - rect.left) * scaleX;
-            const y = (touch.clientY - rect.top) * scaleY;
-            const col = Math.round((x - MARGIN) / CELL_SIZE);
-            const row = Math.round((y - MARGIN) / CELL_SIZE);
-            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
-            if (board[row][col] !== null) return;
-            if (gameOver) return;
-            if (mode === 'online' && !isMyTurn) return;
-
-            if (mode === 'online') {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: 'move',
-                        row: row,
-                        col: col,
-                        player: playerColor
-                    }));
-                }
-            } else {
-                placePiece(row, col);
-            }
-        }, { passive: false });
+        canvas.addEventListener('touchstart', handleCanvasClick, { passive: false });
 
         // ============================================================
         //  键盘事件
@@ -743,9 +912,16 @@
         function showWinModal(text) {
             winnerText.textContent = text;
             winnerText.className = 'winner';
-            if (text.includes('黑棋')) winnerText.className += ' black';
-            else if (text.includes('白棋')) winnerText.className += ' white';
-            else if (text.includes('平局')) winnerText.className += ' draw';
+            if (text.includes('黑棋')) {
+                winnerText.className += ' black';
+                winnerEmoji.textContent = '⚫';
+            } else if (text.includes('白棋')) {
+                winnerText.className += ' white';
+                winnerEmoji.textContent = '⚪';
+            } else if (text.includes('平局')) {
+                winnerText.className += ' draw';
+                winnerEmoji.textContent = '🤝';
+            }
             winnerSub.textContent = '点击下方按钮重新开始';
             winModal.classList.add('show');
         }
@@ -768,20 +944,51 @@
         }
 
         // ============================================================
+        //  菜单
+        // ============================================================
+        function showMenu() {
+            isMenuOpen = true;
+            menuOverlay.classList.remove('hidden');
+            gameContainer.style.display = 'none';
+            if (mode === 'online' && ws) {
+                ws.close();
+                ws = null;
+                isOnline = false;
+            }
+        }
+
+        function hideMenu() {
+            isMenuOpen = false;
+            menuOverlay.classList.add('hidden');
+            gameContainer.style.display = 'block';
+            if (mode === 'online') {
+                updateUI();
+            }
+        }
+
+        function startLocalGame() {
+            mode = 'local';
+            isOnline = false;
+            if (ws) { ws.close();
+                ws = null; }
+            playerColor = null;
+            isMyTurn = true;
+            initBoard();
+            hideMenu();
+            updateUI();
+        }
+
+        // ============================================================
         //  模式切换
         // ============================================================
         function toggleMode() {
             if (mode === 'local') {
-                // 切换到网络
-                if (isOnline && ws) {
-                    ws.close();
-                }
+                if (isOnline && ws) { ws.close(); }
                 mode = 'online';
                 isOnline = false;
                 ws = null;
                 playerColor = null;
                 isMyTurn = false;
-                // 显示菜单让用户选择
                 showMenu();
             } else {
                 mode = 'local';
@@ -805,53 +1012,14 @@
                 updateUI();
                 return;
             }
-            // 尝试连接
             showMenu();
-        }
-
-        // ============================================================
-        //  菜单
-        // ============================================================
-        function showMenu() {
-            isMenuOpen = true;
-            menuOverlay.classList.remove('hidden');
-            gameContainer.style.display = 'none';
-            if (mode === 'online' && ws) {
-                ws.close();
-                ws = null;
-                isOnline = false;
-            }
-        }
-
-        function hideMenu() {
-            isMenuOpen = false;
-            menuOverlay.classList.add('hidden');
-            gameContainer.style.display = 'block';
-            // 如果是在线模式，显示连接状态
-            if (mode === 'online') {
-                updateUI();
-            }
-        }
-
-        function startLocalGame() {
-            mode = 'local';
-            isOnline = false;
-            if (ws) { ws.close();
-                ws = null; }
-            playerColor = null;
-            isMyTurn = true;
-            initBoard();
-            hideMenu();
-            updateUI();
         }
 
         // ============================================================
         //  网络对战
         // ============================================================
-        let wsReconnectTimer = null;
-
         function startOnlineGame() {
-            const btn = document.getElementById('onlineBtn');
+            const btn = document.getElementById('menuOnlineBtn');
             btn.disabled = true;
             btn.textContent = '⏳ 连接中...';
 
@@ -861,11 +1029,7 @@
             isMyTurn = false;
             initBoard();
 
-            // 使用 WebSocket 连接（需要后端支持）
-            // 这里使用一个公共的 WebSocket 测试服务器，实际需要自己部署
-            // 注意：真正的网络对战需要后端服务器，这里只做演示
-            const wsUrl = 'wss://echo.websocket.org'; // 测试用 echo 服务器
-            // 实际使用时需要替换为自己的 WebSocket 服务器地址
+            const wsUrl = wsUrlInput.value.trim() || 'ws://localhost:8765';
 
             try {
                 ws = new WebSocket(wsUrl);
@@ -874,7 +1038,6 @@
                     isOnline = true;
                     btn.disabled = false;
                     btn.textContent = '🌐 网络对战';
-                    // 发送加入房间消息
                     ws.send(JSON.stringify({ type: 'join', room: 'gomoku' }));
                     hideMenu();
                     updateUI();
@@ -893,7 +1056,7 @@
                     btn.disabled = false;
                     btn.textContent = '🌐 网络对战';
                     updateUI();
-                    alert('连接服务器失败，请稍后重试');
+                    alert('连接服务器失败，请检查服务器是否启动');
                 };
                 ws.onclose = function() {
                     console.log('WebSocket 已断开');
@@ -902,14 +1065,10 @@
                     btn.textContent = '🌐 网络对战';
                     if (mode === 'online') {
                         updateUI();
-                        // 自动重连
-                        if (!gameOver) {
-                            // 简单重试
-                        }
                     }
                 };
             } catch (e) {
-                alert('无法创建 WebSocket 连接');
+                alert('无法创建 WebSocket 连接: ' + e.message);
                 btn.disabled = false;
                 btn.textContent = '🌐 网络对战';
                 mode = 'local';
@@ -917,31 +1076,35 @@
             }
         }
 
-        // 1. 修改 WebSocket 地址（找到这行，改成你的服务器地址）
-        const wsUrl = 'ws://localhost:8765';  // ← 改这里
-
-        // 2. 完整的消息处理
         function handleNetworkMessage(msg) {
             console.log('收到网络消息:', msg);
             switch (msg.type) {
                 case 'init':
                     playerColor = msg.player;
                     isMyTurn = (playerColor === 'black');
+                    if (msg.board) {
+                        board = msg.board;
+                    }
+                    if (msg.current_player) {
+                        currentPlayer = msg.current_player;
+                    }
                     updateUI();
                     break;
+
                 case 'sync':
-                    // 同步棋盘
+                console.log('sync 收到:', msg);
                     if (msg.board) {
                         board = msg.board;
                     }
                     if (msg.current_player) {
                         currentPlayer = msg.current_player;
                         isMyTurn = (currentPlayer === playerColor);
+                        console.log('currentPlayer:', currentPlayer, 'playerColor:', playerColor, 'isMyTurn:', isMyTurn);
                     }
                     if (msg.pass_count !== undefined) {
                         passCount = msg.pass_count;
                     }
-                    if (msg.game_over !== undefined) {
+                    if (msg.game_over) {
                         gameOver = msg.game_over;
                     }
                     if (msg.winner) {
@@ -951,22 +1114,45 @@
                     }
                     updateUI();
                     break;
+
+                case 'move':
+                    const { row, col, player } = msg;
+                    if (player !== playerColor) {
+                        board[row][col] = player;
+                        currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+                        isMyTurn = (currentPlayer === playerColor);
+                        updateUI();
+                    }
+                    break;
+
                 case 'win':
                     gameOver = true;
                     winner = msg.winner;
                     showWinModal(getChinese(winner) + ' 获胜！');
                     updateUI();
                     break;
+
                 case 'pass_notify':
                     passCount = msg.pass_count || 0;
                     currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
                     isMyTurn = (currentPlayer === playerColor);
                     updateUI();
                     break;
+
                 case 'reset':
                     initBoard();
                     updateUI();
                     break;
+
+                case 'error':
+                    alert('服务器错误: ' + msg.message);
+                    break;
+
+                case 'start':
+                    console.log('游戏开始');
+                    updateUI();
+                    break;
+
                 default:
                     console.log('未知消息类型:', msg.type);
             }
@@ -980,22 +1166,22 @@
                 ws.close();
                 ws = null;
             }
-            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#1a1a2e;color:#888;font-size:20px;font-family:Arial;">已退出 — 重新打开页面即可</div>';
+            document.body.innerHTML =
+                '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#1a1a2e;color:#888;font-size:20px;font-family:Arial;flex-direction:column;gap:16px;"><span>👋 已退出</span><span style="font-size:14px;color:#555;">重新打开页面即可</span></div>';
         }
 
         // ============================================================
-        //  启动游戏（默认显示菜单）
+        //  启动
         // ============================================================
         initBoard();
         showMenu();
         updateUI();
 
-        // 如果 WebSocket 不可用，显示提示
         if (!window.WebSocket) {
-            console.warn('当前浏览器不支持 WebSocket，网络对战功能不可用');
+            console.warn('当前浏览器不支持 WebSocket，网络对战不可用');
         }
 
-        // 暴露函数到全局
+        // 暴露到全局
         window.startLocalGame = startLocalGame;
         window.startOnlineGame = startOnlineGame;
         window.exitGame = exitGame;
@@ -1006,6 +1192,5 @@
         window.closeWinModal = closeWinModal;
         window.showMenu = showMenu;
     </script>
-
 </body>
 </html>
