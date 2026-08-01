@@ -11,3 +11,11 @@
 
 - Python 3.11
 - Pygame 2.6.1
+
+## 特别操作：
+"双人对战"模式任何情况都可
+“网络对战”模式需分别四个terminal按序运行：
+python ws_server.py  
+.\cloudflared tunnel --url http://localhost:8765  
+python -m http.server 8080  
+.\ngrok http 8080
